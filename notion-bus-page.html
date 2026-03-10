@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#166534">
+<title>🚌 Автобусны маршрут</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body {
+  height: 100%;
+  background: #080f18;
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+@keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+@keyframes bar1 { 0%,100%{height:8px} 50%{height:22px} }
+@keyframes bar2 { 0%,100%{height:14px} 50%{height:8px} }
+@keyframes bar3 { 0%,100%{height:20px} 50%{height:12px} }
+@keyframes bar4 { 0%,100%{height:10px} 50%{height:20px} }
+
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* HEADER */
+.header {
+  background: linear-gradient(160deg,#0f4d28 0%,#166534 60%,#0f4d28 100%);
+  padding: 18px 18px 20px;
+  position: relative;
+  overflow: hidden;
+}
+.header::before {
+  content:'';
+  position: absolute; top:-50px; right:-50px;
+  width:180px; height:180px; border-radius:50%;
+  background: rgba(255,255,255,0.04);
+}
+.logo-row { display:flex; align-items:center; gap:10; margin-bottom:14px; }
+.bus-anim { font-size:36px; animation:pulse 3s ease-in-out infinite; }
+.logo-sub { color:rgba(255,255,255,0.55); font-size:9px; letter-spacing:2.5px; text-transform:uppercase; }
+.logo-title { color:#fff; font-size:17px; font-weight:900; }
+.info-card {
+  background:rgba(0,0,0,0.3); border-radius:16px; padding:12px 16px;
+  display:flex; justify-content:space-between; align-items:center;
+  border:1px solid rgba(255,255,255,0.07);
+}
+.clock { color:#fff; font-size:28px; font-weight:900; letter-spacing:2px; line-height:1; }
+.date-lbl { color:rgba(255,255,255,0.45); font-size:11px; margin-top:4px; }
+.w-icon { font-size:38px; }
+.w-temp { color:#fff; font-size:20px; font-weight:800; text-align:right; }
+.w-loc { color:rgba(255,255,255,0.45); font-size:11px; margin-top:3px; text-align:right; }
+
+/* TABS */
+.tabbar {
+  display:flex; background:#0d1a24;
+  border-bottom:1px solid rgba(255,255,255,0.05);
+  position:sticky; top:0; z-index:100;
+}
+.tab-btn {
+  flex:1; padding:12px 4px 10px;
+  background:transparent; border:none;
+  border-bottom:3px solid transparent;
+  color:rgba(255,255,255,0.35);
+  cursor:pointer; font-family:inherit;
+  transition:all 0.2s;
+}
+.tab-btn.active { color:#16a34a; border-bottom-color:#16a34a; }
+.tab-ico { font-size:22px; }
+.tab-lbl { font-size:10px; font-weight:700; margin-top:3px; letter-spacing:0.5px; }
+
+/* SCREENS */
+.screen { flex:1; display:none; padding:16px 14px 80px; animation:fadeUp 0.3s ease; }
+.screen.active { display:block; }
+.sec-lbl { color:rgba(255,255,255,0.35); font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; margin-bottom:14px; }
+
+/* ROUTE GRID */
+.route-grid { display:grid; grid-template-columns:1fr 1fr; gap:10; }
+.route-card {
+  border-radius:20px; padding:18px 14px 16px;
+  cursor:pointer; text-align:left; border:none;
+  position:relative; overflow:hidden;
+  transition:transform 0.15s; width:100%; font-family:inherit;
+}
+.route-card:active { transform:scale(0.96); }
+.rnum-bg { position:absolute; top:-8px; right:-6px; font-size:52px; opacity:0.12; font-weight:900; line-height:1; }
+.color-dot { width:20px; height:20px; border-radius:50%; margin-bottom:10px; }
+.ri-row { display:flex; align-items:center; gap:5; margin-bottom:8px; }
+.ri-line { flex:1; height:2px; border-radius:2px; }
+.r-name { color:#fff; font-size:13px; font-weight:800; line-height:1.3; }
+.r-freq { color:rgba(255,255,255,0.4); font-size:10px; margin-top:4px; }
+
+/* DETAIL */
+.detail-hero { padding:16px 16px 22px; border-bottom:2px solid rgba(255,255,255,0.06); }
+.back-btn {
+  background:rgba(255,255,255,0.1); border:none; border-radius:12px;
+  padding:10px 16px; color:#fff; font-size:14px; font-weight:700;
+  cursor:pointer; margin-bottom:14px; font-family:inherit;
+  display:inline-flex; align-items:center; gap:6px;
+}
+.back-btn:active { background:rgba(255,255,255,0.2); }
+.d-header { display:flex; align-items:center; gap:14; }
+.num-badge {
+  width:64px; height:64px; border-radius:18px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:22px; font-weight:900; flex-shrink:0;
+}
+.detail-body { padding:16px 14px 28px; }
+.from-to {
+  border-radius:18px; padding:16px; margin-bottom:16px;
+  display:flex; align-items:center;
+}
+.ep { flex:1; text-align:center; }
+.ep-icon { font-size:34px; }
+.ep-badge {
+  border-radius:8px; padding:4px 8px;
+  font-size:10px; font-weight:800; margin-top:6px;
+  text-transform:uppercase; display:inline-block;
+}
+.ep-name { color:#fff; font-size:12px; font-weight:700; margin-top:6px; line-height:1.3; }
+.arr-sec { flex:1.2; display:flex; flex-direction:column; align-items:center; gap:6px; }
+.bus-mov { font-size:22px; animation:pulse 2s ease-in-out infinite; }
+.dots { display:flex; gap:3px; }
+.dot { width:12px; height:3px; border-radius:2px; }
+.stops-box {
+  background:rgba(255,255,255,0.03); border-radius:16px;
+  padding:14px; border:1px solid rgba(255,255,255,0.06); margin-bottom:14px;
+}
+.stop-row { display:flex; align-items:flex-start; gap:12; }
+.stop-lw { display:flex; flex-direction:column; align-items:center; flex-shrink:0; padding-top:2px; }
+.stop-dot { width:16px; height:16px; border-radius:50%; flex-shrink:0; }
+.stop-conn { width:2.5px; border-radius:2px; margin-top:2px; }
+.stop-name { color:rgba(255,255,255,0.65); font-size:15px; }
+.stop-name.hi { color:#fff; font-weight:800; }
+.stop-hint { font-size:11px; font-weight:700; margin-top:2px; }
+.stop-pb { padding-bottom:14px; }
+.map-btn {
+  display:flex; align-items:center; justify-content:center; gap:12;
+  padding:18px; border-radius:18px; color:#fff;
+  text-decoration:none; font-size:16px; font-weight:800;
+  margin-bottom:10px; border:none; cursor:pointer;
+  font-family:inherit; width:100%;
+}
+.map-btn:active { opacity:0.85; }
+.map-hint { color:rgba(255,255,255,0.3); font-size:11px; text-align:center; }
+
+/* GUIDE */
+.guide-card {
+  display:flex; gap:16px; align-items:center;
+  background:rgba(255,255,255,0.04); border-radius:18px;
+  padding:18px 16px; margin-bottom:10px;
+  border:1px solid rgba(255,255,255,0.06);
+}
+.g-ico-wrap {
+  width:60px; height:60px; border-radius:18px;
+  background:rgba(255,255,255,0.06);
+  display:flex; align-items:center; justify-content:center;
+  font-size:32px; flex-shrink:0;
+}
+.g-num {
+  width:22px; height:22px; border-radius:50%; background:#16a34a;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:900; color:#fff; flex-shrink:0;
+}
+.g-title { color:#fff; font-size:16px; font-weight:800; }
+.g-desc { color:rgba(255,255,255,0.5); font-size:13px; line-height:1.5; margin-top:4px; }
+.legend-box {
+  background:rgba(255,255,255,0.03); border-radius:18px;
+  padding:16px; border:1px solid rgba(255,255,255,0.06); margin-top:8px;
+}
+.legend-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-top:12px; }
+.leg-item { display:flex; flex-direction:column; align-items:center; gap:5px; }
+.leg-dot { width:32px; height:32px; border-radius:50%; }
+.leg-num { color:rgba(255,255,255,0.6); font-size:10px; font-weight:700; }
+
+/* SOUND */
+.sound-grid { display:grid; grid-template-columns:1fr 1fr; gap:10; margin-bottom:20px; }
+.sound-card {
+  border-radius:20px; padding:22px 14px 18px;
+  cursor:pointer; text-align:center; border:2.5px solid rgba(255,255,255,0.07);
+  font-family:inherit; transition:all 0.2s; width:100%;
+  background:rgba(255,255,255,0.04);
+}
+.sound-card:active { transform:scale(0.96); }
+.s-ico { font-size:44px; }
+.s-name { color:#fff; font-weight:800; font-size:15px; margin-top:10px; }
+.s-desc { color:rgba(255,255,255,0.4); font-size:12px; margin-top:4px; }
+.eq-bars { display:flex; justify-content:center; gap:3px; margin-top:10px; align-items:flex-end; height:24px; display:none; }
+.eq-b { width:4px; border-radius:2px; }
+.play-card {
+  border-radius:18px; padding:18px 16px;
+  display:flex; align-items:center; gap:14px; margin-bottom:14px;
+}
+.play-btn {
+  width:52px; height:52px; border-radius:50%; border:none;
+  cursor:pointer; font-size:22px; display:flex;
+  align-items:center; justify-content:center;
+  flex-shrink:0; font-family:inherit;
+}
+.play-btn:active { transform:scale(0.9); }
+.motiv {
+  background:rgba(255,255,255,0.03); border-radius:18px;
+  padding:18px 16px; border:1px solid rgba(255,255,255,0.06);
+}
+.motiv-text {
+  color:rgba(255,255,255,0.5); font-size:13px;
+  line-height:1.8; font-style:italic; margin-top:8px;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo-row">
+      <div class="bus-anim">🚌</div>
+      <div>
+        <div class="logo-sub">Эрдэнэт үйлдвэр ТӨҮГ</div>
+        <div class="logo-title">Автобусны маршрут</div>
+      </div>
+    </div>
+    <div class="info-card">
+      <div>
+        <div class="clock" id="clk">--:--</div>
+        <div class="date-lbl" id="dlbl">--</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10;">
+        <div id="wico" class="w-icon">🌤️</div>
+        <div>
+          <div class="w-temp" id="wtemp">-6°C</div>
+          <div class="w-loc" id="wloc">Орхон · Үүлэрхэг</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABBAR -->
+  <div class="tabbar">
+    <button class="tab-btn active" onclick="showTab('routes',this)">
+      <div class="tab-ico">🚌</div><div class="tab-lbl">Маршрут</div>
+    </button>
+    <button class="tab-btn" onclick="showTab('guide',this)">
+      <div class="tab-ico">📋</div><div class="tab-lbl">Заавар</div>
+    </button>
+    <button class="tab-btn" onclick="showTab('sound',this)">
+      <div class="tab-ico">🎵</div><div class="tab-lbl">Ая дуу</div>
+    </button>
+  </div>
+
+  <!-- ROUTES -->
+  <div id="sc-routes" class="screen active">
+    <div class="sec-lbl">Маршрут сонгох</div>
+    <div class="route-grid" id="rGrid"></div>
+  </div>
+
+  <!-- DETAIL -->
+  <div id="sc-detail" class="screen" style="padding:0 0 80px;">
+    <div id="dHero" class="detail-hero"></div>
+    <div id="dBody" class="detail-body"></div>
+  </div>
+
+  <!-- GUIDE -->
+  <div id="sc-guide" class="screen">
+    <div class="sec-lbl">Хэрхэн ашиглах вэ?</div>
+    <div class="guide-card">
+      <div class="g-ico-wrap">🎨</div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <div class="g-num">1</div><div class="g-title">Өнгөө ол</div>
+        </div>
+        <div class="g-desc">Маршрутынхаа өнгийг сонго. Өнгө = маршрут дугаар</div>
+      </div>
+    </div>
+    <div class="guide-card">
+      <div class="g-ico-wrap">📍</div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <div class="g-num">2</div><div class="g-title">Буудалдаа очи</div>
+        </div>
+        <div class="g-desc">Газрын зургаар байршлаа олоорой</div>
+      </div>
+    </div>
+    <div class="guide-card">
+      <div class="g-ico-wrap">🚌</div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <div class="g-num">3</div><div class="g-title">Хүлээ</div>
+        </div>
+        <div class="g-desc">Автобус ирэхийг хүлээ</div>
+      </div>
+    </div>
+    <div class="guide-card">
+      <div class="g-ico-wrap">✅</div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <div class="g-num">4</div><div class="g-title">Унаж буу</div>
+        </div>
+        <div class="g-desc">Хүрэх газраасаа бууж ирнэ</div>
+      </div>
+    </div>
+    <div class="legend-box">
+      <div class="sec-lbl" style="margin-bottom:0;">Өнгөний утга</div>
+      <div class="legend-grid" id="lgGrid"></div>
+    </div>
+  </div>
+
+  <!-- SOUND -->
+  <div id="sc-sound" class="screen">
+    <div class="sec-lbl">Сэтгэлзүйн дэмжлэг</div>
+    <p style="color:rgba(255,255,255,0.35);font-size:12px;line-height:1.6;margin-bottom:18px;">Ажилдаа явахдаа тохирох аяа сонго</p>
+    <div class="sound-grid" id="sGrid"></div>
+    <div id="playCard"></div>
+    <div class="motiv">
+      <div style="font-size:28px;">💪</div>
+      <div class="motiv-text">"Эрдэнэт хотын хөгжилд та бүхний хувь нэмэр асар их. Өнөөдрийн ажлын өдөр таниас амжилттай болох болтугай!"</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════ DATA ═══════════
+const ROUTES = [
+  { id:1, num:"01", color:"#16a34a", bg:"#052e16", name:"Төв — Үйлдвэр", from:"Төв талбай", to:"Эрдэнэт үйлдвэр", fi:"🏛️", ti:"🏭", time:"06:00–22:00", freq:"15 мин",
+    stops:[{n:"Төв талбай",f:1},{n:"Их дэлгүүр"},{n:"3-р хороо"},{n:"Эрдэнэт үйлдвэр",l:1}],
+    map:"https://www.google.com/maps/dir/Төв+талбай,+Эрдэнэт/Эрдэнэт+үйлдвэр,+Эрдэнэт" },
+  { id:2, num:"02", color:"#2563eb", bg:"#0f172a", name:"Наран — Зах", from:"Наран буудал", to:"Захын буудал", fi:"🌅", ti:"🛒", time:"06:30–21:30", freq:"20 мин",
+    stops:[{n:"Наран буудал",f:1},{n:"Сургууль"},{n:"4-р хороо"},{n:"Захын буудал",l:1}],
+    map:"https://www.google.com/maps/search/Эрдэнэт+хот" },
+  { id:3, num:"03", color:"#ea580c", bg:"#1c0a00", name:"1-р хороо — Парк", from:"1-р хороо", to:"Парк", fi:"🏠", ti:"🌳", time:"07:00–21:00", freq:"25 мин",
+    stops:[{n:"1-р хороо",f:1},{n:"Эмнэлэг 🏥"},{n:"Сургууль"},{n:"Парк",l:1}],
+    map:"https://www.google.com/maps/search/Эрдэнэт+хот" },
+  { id:4, num:"04", color:"#9333ea", bg:"#1a0533", name:"Зах — Цэцэрлэгт", from:"Захын буудал", to:"Цэцэрлэгт хүрээлэн", fi:"🛒", ti:"🌲", time:"06:00–22:00", freq:"15 мин",
+    stops:[{n:"Захын буудал",f:1},{n:"5-р хороо"},{n:"Баянгол"},{n:"Цэцэрлэгт хүрээлэн",l:1}],
+    map:"https://www.google.com/maps/search/Эрдэнэт+хот" },
+  { id:5, num:"05", color:"#dc2626", bg:"#1f0505", name:"Баянгол — Үйлдвэр", from:"Баянгол", to:"Эрдэнэт үйлдвэр", fi:"🏘️", ti:"🏭", time:"07:30–20:30", freq:"30 мин",
+    stops:[{n:"Баянгол",f:1},{n:"Дэлгүүр"},{n:"6-р хороо"},{n:"Эрдэнэт үйлдвэр",l:1}],
+    map:"https://www.google.com/maps/search/Эрдэнэт+хот" },
+  { id:6, num:"06", color:"#0891b2", bg:"#021b24", name:"Төв — Баянгол", from:"Төв", to:"Баянгол", fi:"🏛️", ti:"🏘️", time:"06:00–22:30", freq:"12 мин",
+    stops:[{n:"Төв",f:1},{n:"Зах"},{n:"Эмнэлэг 🏥"},{n:"Баянгол",l:1}],
+    map:"https://www.google.com/maps/search/Эрдэнэт+хот" },
+];
+
+const SOUNDS = [
+  {ico:"🌅",name:"Өглөө",color:"#f59e0b",desc:"Эрч хүч"},
+  {ico:"🌿",name:"Байгаль",color:"#16a34a",desc:"Тайвширна"},
+  {ico:"🌙",name:"Орой",color:"#6366f1",desc:"Амрах"},
+  {ico:"🎵",name:"Хөгжим",color:"#ec4899",desc:"Баяр хөөр"},
+];
+
+// ═══════════ CLOCK ═══════════
+const DAYS=["Ням","Дав","Мяг","Лха","Пүр","Баа","Бям"];
+function tick(){
+  const n=new Date();
+  document.getElementById('clk').textContent=
+    String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+  document.getElementById('dlbl').textContent=
+    DAYS[n.getDay()]+' · '+n.getDate()+'/'+(n.getMonth()+1);
+  const h=n.getHours();
+  if(h<11){document.getElementById('wico').textContent='🌤️';document.getElementById('wtemp').textContent='-6°C';document.getElementById('wloc').textContent='Орхон · Үүлэрхэг';}
+  else if(h<18){document.getElementById('wico').textContent='☀️';document.getElementById('wtemp').textContent='-2°C';document.getElementById('wloc').textContent='Орхон · Нарлаг';}
+  else{document.getElementById('wico').textContent='🌙';document.getElementById('wtemp').textContent='-9°C';document.getElementById('wloc').textContent='Орхон · Хүйтэн';}
+}
+tick(); setInterval(tick,1000);
+
+// ═══════════ TABS ═══════════
+function showTab(id,btn){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('sc-'+id).classList.add('active');
+}
+
+// ═══════════ ROUTE GRID ═══════════
+function buildGrid(){
+  const g=document.getElementById('rGrid');
+  ROUTES.forEach(r=>{
+    const b=document.createElement('button');
+    b.className='route-card';
+    b.style.cssText=`background:linear-gradient(145deg,${r.bg},${r.color}33);border:2.5px solid ${r.color}55;`;
+    b.innerHTML=`
+      <div class="rnum-bg" style="color:${r.color};">${r.num}</div>
+      <div class="color-dot" style="background:${r.color};box-shadow:0 0 12px ${r.color}88;"></div>
+      <div class="ri-row">
+        <span style="font-size:20px;">${r.fi}</span>
+        <div class="ri-line" style="background:linear-gradient(90deg,${r.color},transparent);"></div>
+        <span style="font-size:16px;">🚌</span>
+        <div class="ri-line" style="background:linear-gradient(90deg,transparent,${r.color});"></div>
+        <span style="font-size:20px;">${r.ti}</span>
+      </div>
+      <div class="r-name">${r.name}</div>
+      <div class="r-freq">${r.freq} тутам</div>`;
+    b.onclick=()=>showDetail(r);
+    g.appendChild(b);
+  });
+}
+
+// ═══════════ DETAIL ═══════════
+function showDetail(r){
+  document.getElementById('sc-routes').classList.remove('active');
+  document.getElementById('sc-detail').classList.add('active');
+
+  document.getElementById('dHero').style.cssText=
+    `background:linear-gradient(160deg,${r.bg},${r.color}44);border-bottom:2px solid ${r.color}33;padding:16px 16px 22px;`;
+  document.getElementById('dHero').innerHTML=`
+    <button class="back-btn" onclick="backToRoutes()">← Буцах</button>
+    <div class="d-header">
+      <div class="num-badge" style="background:${r.color}33;border:3px solid ${r.color};color:${r.color};box-shadow:0 0 24px ${r.color}55;">${r.num}</div>
+      <div>
+        <div style="color:#fff;font-size:18px;font-weight:900;">${r.name}</div>
+        <div style="color:rgba(255,255,255,0.5);font-size:12px;margin-top:3px;">🕐 ${r.time}</div>
+        <div style="color:${r.color};font-size:12px;margin-top:2px;font-weight:700;">⏱ ${r.freq} тутам нэг автобус</div>
+      </div>
+    </div>`;
+
+  let stops='';
+  r.stops.forEach((s,i)=>{
+    const isF=i===0, isL=i===r.stops.length-1;
+    const dotBg=(isF||isL)?r.color:'transparent';
+    const shadow=(isF||isL)?`0 0 10px ${r.color}88`:'none';
+    const connH=(i<r.stops.length-1)?'32px':'0';
+    const hint=isF?`<div class="stop-hint" style="color:${r.color};">⬆ Энд уна</div>`
+      :isL?`<div class="stop-hint" style="color:rgba(255,255,255,0.4);">⬇ Энд бу</div>`:'';
+    stops+=`
+      <div class="stop-row">
+        <div class="stop-lw">
+          <div class="stop-dot" style="background:${dotBg};border:2.5px solid ${r.color};box-shadow:${shadow};"></div>
+          <div class="stop-conn" style="height:${connH};background:linear-gradient(${r.color}66,${r.color}22);"></div>
+        </div>
+        <div class="${i<r.stops.length-1?'stop-pb':''}">
+          <div class="stop-name ${(isF||isL)?'hi':''}">${s.n}</div>${hint}
+        </div>
+      </div>`;
+  });
+
+  document.getElementById('dBody').innerHTML=`
+    <div class="from-to" style="background:${r.color}11;border:2px solid ${r.color}33;">
+      <div class="ep">
+        <div class="ep-icon">${r.fi}</div>
+        <div class="ep-badge" style="background:${r.color};color:#fff;">Эхлэл</div>
+        <div class="ep-name">${r.from}</div>
+      </div>
+      <div class="arr-sec">
+        <div class="bus-mov">🚌</div>
+        <div class="dots">
+          ${[0,1,2,3,4].map(i=>`<div class="dot" style="background:${r.color};opacity:${0.3+i*0.14};"></div>`).join('')}
+        </div>
+      </div>
+      <div class="ep">
+        <div class="ep-icon">${r.ti}</div>
+        <div class="ep-badge" style="background:rgba(255,255,255,0.15);color:#fff;">Төгсгөл</div>
+        <div class="ep-name">${r.to}</div>
+      </div>
+    </div>
+    <div class="sec-lbl">Зогсоолууд</div>
+    <div class="stops-box">${stops}</div>
+    <a href="${r.map}" target="_blank" class="map-btn"
+      style="background:linear-gradient(135deg,${r.color},${r.color}cc);box-shadow:0 8px 24px ${r.color}55;">
+      <span style="font-size:26px;">🗺️</span> Google Maps дээр харах
+    </a>
+    <div class="map-hint">Дарбал газрын зураг нээгдэнэ</div>`;
+}
+
+function backToRoutes(){
+  document.getElementById('sc-detail').classList.remove('active');
+  document.getElementById('sc-routes').classList.add('active');
+}
+
+// ═══════════ LEGEND ═══════════
+function buildLegend(){
+  const g=document.getElementById('lgGrid');
+  ROUTES.forEach(r=>{
+    const d=document.createElement('div');
+    d.className='leg-item';
+    d.innerHTML=`<div class="leg-dot" style="background:${r.color};box-shadow:0 0 10px ${r.color}66;"></div><div class="leg-num">${r.num}</div>`;
+    g.appendChild(d);
+  });
+}
+
+// ═══════════ SOUND ═══════════
+let activeS=null, isPlay=false;
+function buildSound(){
+  const g=document.getElementById('sGrid');
+  SOUNDS.forEach(s=>{
+    const b=document.createElement('button');
+    b.className='sound-card'; b.id='sc-'+s.name;
+    b.innerHTML=`
+      <div class="s-ico">${s.ico}</div>
+      <div class="s-name">${s.name}</div>
+      <div class="s-desc">${s.desc}</div>
+      <div class="eq-bars" id="eq-${s.name}">
+        <div class="eq-b" style="background:${s.color};animation:bar1 0.8s ease-in-out infinite;height:8px;"></div>
+        <div class="eq-b" style="background:${s.color};animation:bar2 0.7s ease-in-out infinite;height:14px;"></div>
+        <div class="eq-b" style="background:${s.color};animation:bar3 0.9s ease-in-out infinite;height:20px;"></div>
+        <div class="eq-b" style="background:${s.color};animation:bar4 0.6s ease-in-out infinite;height:10px;"></div>
+      </div>`;
+    b.onclick=()=>pickSound(s);
+    g.appendChild(b);
+  });
+}
+
+function pickSound(s){
+  SOUNDS.forEach(x=>{
+    const c=document.getElementById('sc-'+x.name);
+    c.style.background='rgba(255,255,255,0.04)';
+    c.style.borderColor='rgba(255,255,255,0.07)';
+    c.style.boxShadow='none';
+    document.getElementById('eq-'+x.name).style.display='none';
+  });
+  activeS=s; isPlay=true;
+  const c=document.getElementById('sc-'+s.name);
+  c.style.background=s.color+'22';
+  c.style.borderColor=s.color;
+  c.style.boxShadow='0 0 20px '+s.color+'44';
+  document.getElementById('eq-'+s.name).style.display='flex';
+  renderPlayCard();
+}
+
+function togglePlay(){
+  isPlay=!isPlay;
+  if(activeS) document.getElementById('eq-'+activeS.name).style.display=isPlay?'flex':'none';
+  renderPlayCard();
+}
+
+function renderPlayCard(){
+  const pc=document.getElementById('playCard');
+  if(!activeS){pc.innerHTML='';return;}
+  pc.innerHTML=`
+    <div class="play-card" style="background:${activeS.color}15;border:2px solid ${activeS.color}33;border-radius:18px;">
+      <span style="font-size:38px;">${activeS.ico}</span>
+      <div style="flex:1;">
+        <div style="color:#fff;font-weight:800;font-size:16px;">${activeS.name} аялгуу</div>
+        <div style="color:rgba(255,255,255,0.45);font-size:12px;margin-top:3px;">${activeS.desc}</div>
+      </div>
+      <button class="play-btn" onclick="togglePlay()"
+        style="background:${activeS.color};box-shadow:0 0 20px ${activeS.color}66;">
+        ${isPlay?'⏸':'▶'}
+      </button>
+    </div>`;
+}
+
+// ═══════════ INIT ═══════════
+buildGrid();
+buildLegend();
+buildSound();
+</script>
+</body>
+</html>
